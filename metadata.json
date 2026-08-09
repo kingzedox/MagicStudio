@@ -1,0 +1,8 @@
+{
+  "name": "MagicStudio",
+  "description": "Real-Time AI Co-Design on Solana using MagicBlock Ephemeral Rollups",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

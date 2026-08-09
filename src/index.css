@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+* {
+  cursor: url("data:image/svg+xml;utf8,<svg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M5.65376 1.15003L22.6538 10.15C23.5186 10.6067 23.4975 11.8385 22.6162 12.261L14.7335 16.037L9.93282 23.3638C9.43194 24.1281 8.24357 23.9576 7.97127 23.0847L5.65376 1.15003Z' fill='%23FF4564' stroke='white' stroke-width='2' stroke-linejoin='round'/></svg>"), auto !important;
+}
