@@ -1,10 +1,11 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { CanvasElement, TimelineEvent } from "../types";
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from "../constants";
 import { 
   PlusSquare, Type, Image as ImageIcon, History, Circle, Star, Triangle,
   AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   ArrowUpToLine, ArrowDownToLine, ChevronUp, ChevronDown, Copy, Trash2, Lock, Unlock,
-  Group, Ungroup, CheckSquare, X
+  Group, Ungroup, CheckSquare, X, FlipHorizontal, FlipVertical
 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 
@@ -38,11 +39,22 @@ export default function Sidebar({
   const effectiveSelectedIds = selectedIds.length > 0 ? selectedIds : (selectedId ? [selectedId] : []);
   const selectedEl = elements.find(e => e.id === selectedId);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [showGradient, setShowGradient] = useState(false);
 
   const isGrouped = effectiveSelectedIds.some(id => elements.find(el => el.id === id)?.groupId);
 
+  // Color presets
+  const colorPresets = [
+    '#FF4564', '#4f46e5', '#ec4899', '#eab308', 
+    '#10b981', '#3b82f6', '#8b5cf6', '#f97316',
+    '#000000', '#ffffff', '#6b7280', '#1f2937'
+  ];
+
   const handleGroup = () => {
-    if (effectiveSelectedIds.length < 2) return;
+    if (effectiveSelectedIds.length < 2) {
+      return;
+    }
+    
     const newGroupId = uuidv4();
     const newEls = elements.map(el => {
       if (effectiveSelectedIds.includes(el.id)) {
@@ -55,9 +67,12 @@ export default function Sidebar({
   };
 
   const handleUngroup = () => {
-    if (effectiveSelectedIds.length === 0) return;
+    if (effectiveSelectedIds.length === 0) {
+      return;
+    }
+    
     const newEls = elements.map(el => {
-      if (effectiveSelectedIds.includes(el.id)) {
+      if (effectiveSelectedIds.includes(el.id) && el.groupId) {
         const { groupId, ...rest } = el;
         return rest;
       }
@@ -149,11 +164,29 @@ export default function Sidebar({
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      console.log("No file selected");
+      return;
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      console.log("File is not an image:", file.type);
+      alert("Please select an image file (jpg, png, gif, etc.)");
+      return;
+    }
+
+    console.log("Loading image:", file.name, file.type);
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
+      const dataUrl = event.target?.result;
+      if (typeof dataUrl !== 'string') {
+        console.error("Failed to read file as data URL");
+        return;
+      }
+      
+      console.log("Image loaded successfully, adding to canvas");
+      
       const newEl: CanvasElement = {
         id: uuidv4(),
         type: 'image',
@@ -166,7 +199,13 @@ export default function Sidebar({
       setSelectedId(newEl.id);
       onAddCommit("Uploaded Image");
     };
+    reader.onerror = (error) => {
+      console.error("Error reading file:", error);
+      alert("Failed to load image. Please try again.");
+    };
     reader.readAsDataURL(file);
+    
+    // Reset input
     if (e.target) e.target.value = "";
   };
 
@@ -185,40 +224,46 @@ export default function Sidebar({
   };
 
   const updateSelectedEl = (updates: Partial<CanvasElement>) => {
-    if (effectiveSelectedIds.length === 0) return;
-    setElements(elements.map(el => effectiveSelectedIds.includes(el.id) ? { ...el, ...updates } : el));
+    if (!updates || effectiveSelectedIds.length === 0) return;
+    
+    setElements(elements.map(el => 
+      effectiveSelectedIds.includes(el.id) ? { ...el, ...updates } : el
+    ));
   };
 
-  // Alignment Helpers (Canvas is 800x600)
+  // Alignment Helpers
   const alignElement = (type: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
     if (!selectedEl) return;
     let x = selectedEl.x;
     let y = selectedEl.y;
 
     if (type === 'left') x = 0;
-    if (type === 'center') x = (800 - selectedEl.w) / 2;
-    if (type === 'right') x = 800 - selectedEl.w;
+    if (type === 'center') x = (CANVAS_WIDTH - selectedEl.w) / 2;
+    if (type === 'right') x = CANVAS_WIDTH - selectedEl.w;
     if (type === 'top') y = 0;
-    if (type === 'middle') y = (600 - selectedEl.h) / 2;
-    if (type === 'bottom') y = 600 - selectedEl.h;
+    if (type === 'middle') y = (CANVAS_HEIGHT - selectedEl.h) / 2;
+    if (type === 'bottom') y = CANVAS_HEIGHT - selectedEl.h;
 
     updateSelectedEl({ x, y });
     onAddCommit(`Aligned ${type}`);
   };
 
-  // Layer Ordering Helpers
   const moveLayer = (action: 'front' | 'back' | 'forward' | 'backward') => {
     if (!selectedId) return;
+    
     const index = elements.findIndex(e => e.id === selectedId);
     if (index === -1) return;
 
     const newArr = [...elements];
     const [item] = newArr.splice(index, 1);
 
-    if (action === 'front') newArr.push(item);
-    if (action === 'back') newArr.unshift(item);
-    if (action === 'forward') newArr.splice(Math.min(newArr.length, index + 1), 0, item);
-    if (action === 'backward') newArr.splice(Math.max(0, index - 1), 0, item);
+    let newIndex = index;
+    if (action === 'front') newIndex = newArr.length;
+    else if (action === 'back') newIndex = 0;
+    else if (action === 'forward') newIndex = Math.min(newArr.length, index + 1);
+    else if (action === 'backward') newIndex = Math.max(0, index - 1);
+    
+    newArr.splice(newIndex, 0, item);
 
     setElements(newArr);
     onAddCommit(`Reordered layer (${action})`);
@@ -277,26 +322,26 @@ export default function Sidebar({
       />
 
       {/* Tools Section */}
-      <div className="p-4 border-b border-white/10 flex-shrink-0">
-        <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">Add Shapes & Media</h3>
+      <div className={`p-4 border-b flex-shrink-0 ${isDark ? 'border-white/10' : 'border-neutral-200'}`}>
+        <h3 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-neutral-400' : 'text-neutral-500'}`}>Add Shapes & Media</h3>
         <div className="grid grid-cols-3 gap-1.5 mb-3">
-          <button onClick={handleAddBox} className="flex flex-col items-center justify-center gap-1 p-2 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-900 hover:bg-neutral-800 rounded-md transition-colors border border-white/5">
+          <button onClick={handleAddBox} className={`flex flex-col items-center justify-center gap-1 p-2 text-xs font-medium rounded-md transition-colors border ${isDark ? 'text-neutral-300 hover:text-white bg-neutral-900 hover:bg-neutral-800 border-white/5' : 'text-neutral-600 hover:text-neutral-900 bg-neutral-100 hover:bg-neutral-200 border-neutral-200'}`}>
             <PlusSquare className="w-4 h-4 text-[#FF4564]" />
             <span>Box</span>
           </button>
-          <button onClick={handleAddCircle} className="flex flex-col items-center justify-center gap-1 p-2 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-900 hover:bg-neutral-800 rounded-md transition-colors border border-white/5">
+          <button onClick={handleAddCircle} className={`flex flex-col items-center justify-center gap-1 p-2 text-xs font-medium rounded-md transition-colors border ${isDark ? 'text-neutral-300 hover:text-white bg-neutral-900 hover:bg-neutral-800 border-white/5' : 'text-neutral-600 hover:text-neutral-900 bg-neutral-100 hover:bg-neutral-200 border-neutral-200'}`}>
             <Circle className="w-4 h-4 text-[#FF4564]" />
             <span>Circle</span>
           </button>
-          <button onClick={handleAddStar} className="flex flex-col items-center justify-center gap-1 p-2 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-900 hover:bg-neutral-800 rounded-md transition-colors border border-white/5">
+          <button onClick={handleAddStar} className={`flex flex-col items-center justify-center gap-1 p-2 text-xs font-medium rounded-md transition-colors border ${isDark ? 'text-neutral-300 hover:text-white bg-neutral-900 hover:bg-neutral-800 border-white/5' : 'text-neutral-600 hover:text-neutral-900 bg-neutral-100 hover:bg-neutral-200 border-neutral-200'}`}>
             <Star className="w-4 h-4 text-[#FF4564]" />
             <span>Star</span>
           </button>
-          <button onClick={handleAddTriangle} className="flex flex-col items-center justify-center gap-1 p-2 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-900 hover:bg-neutral-800 rounded-md transition-colors border border-white/5">
+          <button onClick={handleAddTriangle} className={`flex flex-col items-center justify-center gap-1 p-2 text-xs font-medium rounded-md transition-colors border ${isDark ? 'text-neutral-300 hover:text-white bg-neutral-900 hover:bg-neutral-800 border-white/5' : 'text-neutral-600 hover:text-neutral-900 bg-neutral-100 hover:bg-neutral-200 border-neutral-200'}`}>
             <Triangle className="w-4 h-4 text-[#FF4564]" />
             <span>Triangle</span>
           </button>
-          <button onClick={handleAddText} className="flex flex-col items-center justify-center gap-1 p-2 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-900 hover:bg-neutral-800 rounded-md transition-colors border border-white/5 col-span-2">
+          <button onClick={handleAddText} className={`flex flex-col items-center justify-center gap-1 p-2 text-xs font-medium rounded-md transition-colors border col-span-2 ${isDark ? 'text-neutral-300 hover:text-white bg-neutral-900 hover:bg-neutral-800 border-white/5' : 'text-neutral-600 hover:text-neutral-900 bg-neutral-100 hover:bg-neutral-200 border-neutral-200'}`}>
             <Type className="w-4 h-4 text-[#FF4564]" />
             <span>Text</span>
           </button>
@@ -328,7 +373,7 @@ export default function Sidebar({
       </div>
 
       {/* Properties & Actions Section */}
-      <div className="p-4 border-b border-white/10 flex-shrink-0 space-y-4">
+      <div className={`p-4 border-b flex-shrink-0 space-y-4 ${isDark ? 'border-white/10' : 'border-neutral-200'}`}>
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
@@ -504,20 +549,160 @@ export default function Sidebar({
             {/* Fill Color */}
             {selectedEl.type !== 'image' && (
               <div className="flex flex-col gap-1.5">
-                <span className="text-neutral-500 text-xs">Fill Color</span>
-                <div className="flex items-center gap-2 bg-neutral-900 p-1.5 rounded border border-neutral-800">
-                  <input 
-                    type="color" 
-                    value={selectedEl.color.startsWith('#') ? selectedEl.color : '#ffffff'} 
-                    onChange={(e) => updateSelectedEl({ color: e.target.value })}
-                    className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0"
-                  />
-                  <input
-                    type="text"
-                    value={selectedEl.color}
-                    onChange={(e) => updateSelectedEl({ color: e.target.value })}
-                    className="font-mono text-xs text-neutral-300 uppercase flex-1 bg-transparent focus:outline-none"
-                  />
+                <div className="flex justify-between items-center">
+                  <span className="text-neutral-500 text-xs">Fill</span>
+                  <button
+                    onClick={() => setShowGradient(!showGradient)}
+                    className="text-[10px] px-2 py-0.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded border border-white/5 transition-colors"
+                  >
+                    {showGradient ? 'Solid' : 'Gradient'}
+                  </button>
+                </div>
+
+                {!showGradient ? (
+                  <>
+                    <div className="flex items-center gap-2 bg-neutral-900 p-1.5 rounded border border-neutral-800">
+                      <input 
+                        type="color" 
+                        value={selectedEl.color.startsWith('#') ? selectedEl.color : '#ffffff'} 
+                        onChange={(e) => updateSelectedEl({ color: e.target.value, gradient: undefined })}
+                        className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0"
+                      />
+                      <input
+                        type="text"
+                        value={selectedEl.color}
+                        onChange={(e) => updateSelectedEl({ color: e.target.value, gradient: undefined })}
+                        className="font-mono text-xs text-neutral-300 uppercase flex-1 bg-transparent focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Color Presets */}
+                    <div className="grid grid-cols-6 gap-1.5 mt-1">
+                      {colorPresets.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => updateSelectedEl({ color, gradient: undefined })}
+                          className="w-full h-6 rounded border-2 border-white/10 hover:border-[#FF4564] transition-colors shadow-sm"
+                          style={{ backgroundColor: color }}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-neutral-400 text-[10px]">Gradient Type</span>
+                      <div className="flex bg-neutral-900 rounded border border-neutral-800 p-0.5">
+                        <button
+                          onClick={() => updateSelectedEl({
+                            gradient: {
+                              type: 'linear',
+                              stops: selectedEl.gradient?.stops || [
+                                { color: '#4f46e5', offset: 0 },
+                                { color: '#ec4899', offset: 1 }
+                              ],
+                              angle: selectedEl.gradient?.angle || 90
+                            }
+                          })}
+                          className={`flex-1 py-1.5 text-xs rounded ${selectedEl.gradient?.type === 'linear' ? 'bg-[#FF4564] text-white' : 'text-neutral-400'}`}
+                        >
+                          Linear
+                        </button>
+                        <button
+                          onClick={() => updateSelectedEl({
+                            gradient: {
+                              type: 'radial',
+                              stops: selectedEl.gradient?.stops || [
+                                { color: '#4f46e5', offset: 0 },
+                                { color: '#ec4899', offset: 1 }
+                              ]
+                            }
+                          })}
+                          className={`flex-1 py-1.5 text-xs rounded ${selectedEl.gradient?.type === 'radial' ? 'bg-[#FF4564] text-white' : 'text-neutral-400'}`}
+                        >
+                          Radial
+                        </button>
+                      </div>
+                    </div>
+
+                    {selectedEl.gradient?.type === 'linear' && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-neutral-400 text-[10px]">Angle: {selectedEl.gradient.angle || 90}°</span>
+                        <input
+                          type="range"
+                          min="0"
+                          max="360"
+                          value={selectedEl.gradient.angle || 90}
+                          onChange={(e) => updateSelectedEl({
+                            gradient: { ...selectedEl.gradient!, angle: Number(e.target.value) }
+                          })}
+                          className="w-full accent-[#FF4564] h-1.5 bg-neutral-800 rounded cursor-pointer"
+                        />
+                      </div>
+                    )}
+
+                    {/* Gradient Color Stops */}
+                    <div className="space-y-1.5">
+                      <span className="text-neutral-400 text-[10px]">Colors</span>
+                      {(selectedEl.gradient?.stops || []).map((stop, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={stop.color}
+                            onChange={(e) => {
+                              const newStops = [...(selectedEl.gradient?.stops || [])];
+                              newStops[idx] = { ...newStops[idx], color: e.target.value };
+                              updateSelectedEl({
+                                gradient: { ...selectedEl.gradient!, stops: newStops }
+                              });
+                            }}
+                            className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0"
+                          />
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={stop.offset * 100}
+                            onChange={(e) => {
+                              const newStops = [...(selectedEl.gradient?.stops || [])];
+                              newStops[idx] = { ...newStops[idx], offset: Number(e.target.value) / 100 };
+                              updateSelectedEl({
+                                gradient: { ...selectedEl.gradient!, stops: newStops }
+                              });
+                            }}
+                            className="flex-1 accent-[#FF4564] h-1 bg-neutral-800 rounded cursor-pointer"
+                          />
+                          <span className="text-[10px] text-neutral-500 w-8">{Math.round(stop.offset * 100)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Flip Controls */}
+            {selectedEl.type !== 'text' && selectedEl.type !== 'image' && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-neutral-500 text-xs">Transform</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => updateSelectedEl({ scaleX: (selectedEl.scaleX || 1) * -1 })}
+                    className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white rounded border border-white/5 text-xs transition-colors"
+                    title="Flip Horizontal"
+                  >
+                    <FlipHorizontal className="w-3.5 h-3.5" />
+                    <span>Flip H</span>
+                  </button>
+                  <button
+                    onClick={() => updateSelectedEl({ scaleY: (selectedEl.scaleY || 1) * -1 })}
+                    className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white rounded border border-white/5 text-xs transition-colors"
+                    title="Flip Vertical"
+                  >
+                    <FlipVertical className="w-3.5 h-3.5" />
+                    <span>Flip V</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -685,7 +870,7 @@ export default function Sidebar({
             )}
           </div>
         ) : (
-          <div className="text-xs text-neutral-500 italic py-2 text-center bg-neutral-900/50 rounded border border-white/5">
+          <div className={`text-xs italic py-2 text-center rounded border ${isDark ? 'text-neutral-500 bg-neutral-900/50 border-white/5' : 'text-neutral-400 bg-neutral-50 border-neutral-200'}`}>
             Select an element on canvas to edit properties
           </div>
         )}

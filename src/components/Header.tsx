@@ -1,5 +1,7 @@
-import { Save, Send, Zap, Home, Copy, Check, Sliders, Sun, Moon } from "lucide-react";
-import { useState } from "react";
+import { Save, Send, Zap, Home, Copy, Check, Sliders, Sun, Moon, Download, Upload } from "lucide-react";
+import { useState, useRef } from "react";
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 interface HeaderProps {
   roomId: string;
@@ -9,6 +11,9 @@ interface HeaderProps {
   onToggleMobileTools?: () => void;
   theme?: 'dark' | 'light';
   onToggleTheme?: () => void;
+  onExportPNG?: () => void;
+  onExportJSON?: () => void;
+  onImportJSON?: (file: File) => void;
 }
 
 export default function Header({
@@ -18,14 +23,47 @@ export default function Header({
   onPublish,
   onToggleMobileTools,
   theme = 'dark',
-  onToggleTheme
+  onToggleTheme,
+  onExportPNG,
+  onExportJSON,
+  onImportJSON
 }: HeaderProps) {
   const [copied, setCopied] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { setVisible } = useWalletModal();
+  const { publicKey, disconnect, connecting } = useWallet();
 
-  const handleCopyRoom = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyRoom = async () => {
+    const roomUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+    try {
+      await navigator.clipboard.writeText(roomUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback for browsers that don't support clipboard API
+      const textArea = document.createElement('textarea');
+      textArea.value = roomUrl;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (fallbackErr) {
+        console.error('Failed to copy:', fallbackErr);
+      }
+      document.body.removeChild(textArea);
+    }
+  };
+
+  const handleWalletClick = () => {
+    if (publicKey) {
+      disconnect();
+    } else {
+      setVisible(true);
+    }
   };
 
   const isDark = theme === 'dark';
@@ -91,28 +129,109 @@ export default function Header({
           <Save className="w-3.5 h-3.5 text-[#FF4564]" />
           <span>Snapshot</span>
         </button>
+
+        {/* Local Persistence Tools */}
+        {onExportPNG && (
+          <button
+            onClick={onExportPNG}
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors border ${
+              isDark 
+                ? 'text-neutral-300 hover:text-white bg-neutral-900 border-neutral-800 hover:bg-neutral-800' 
+                : 'text-neutral-700 hover:text-neutral-900 bg-neutral-100 border-neutral-200 hover:bg-neutral-200'
+            }`}
+            title="Download Canvas as PNG"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>PNG</span>
+          </button>
+        )}
+
+        {onExportJSON && onImportJSON && (
+          <div className="hidden sm:flex items-center gap-1">
+            <button
+              onClick={onExportJSON}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-l-md transition-colors border ${
+                isDark 
+                  ? 'text-neutral-300 hover:text-white bg-neutral-900 border-neutral-800 hover:bg-neutral-800' 
+                  : 'text-neutral-700 hover:text-neutral-900 bg-neutral-100 border-neutral-200 hover:bg-neutral-200'
+              }`}
+              title="Save Design (.json)"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>Save</span>
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-r-md transition-colors border-y border-r ${
+                isDark 
+                  ? 'text-neutral-300 hover:text-white bg-neutral-900 border-neutral-800 hover:bg-neutral-800 border-l-0' 
+                  : 'text-neutral-700 hover:text-neutral-900 bg-neutral-100 border-neutral-200 hover:bg-neutral-200 border-l-0'
+              }`}
+              title="Load Design (.json)"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Load</span>
+            </button>
+            <input 
+              type="file" 
+              ref={fileInputRef}
+              accept=".json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  onImportJSON(file);
+                  e.target.value = ''; // Reset input
+                }
+              }}
+            />
+          </div>
+        )}
         
         <button
           onClick={onPublish}
-          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#FF4564] hover:bg-[#ff5a75] rounded-md transition-colors shadow-sm"
-          title="Publish L1"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#ffe0e5] hover:bg-[#ffc2cc] text-[#FF4564] text-xs font-bold rounded-md transition-all shadow-sm"
         >
           <Send className="w-3.5 h-3.5" />
-          <span>Publish L1</span>
+          <span className="hidden sm:inline">Publish</span>
         </button>
+
+        <div className="hidden sm:block">
+          <button
+            onClick={handleWalletClick}
+            disabled={connecting}
+            className={`h-8 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              publicKey
+                ? isDark 
+                  ? 'bg-[#FF4564] text-white hover:bg-[#ff3050]' 
+                  : 'bg-[#FF4564] text-white hover:bg-[#ff3050]'
+                : connecting
+                ? isDark
+                  ? 'bg-neutral-800 text-neutral-400 cursor-wait'
+                  : 'bg-neutral-200 text-neutral-500 cursor-wait'
+                : isDark
+                  ? 'bg-neutral-800 text-white hover:bg-neutral-700'
+                  : 'bg-neutral-200 text-neutral-900 hover:bg-neutral-300'
+            }`}
+          >
+            {connecting ? 'Connecting...' : publicKey ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}` : 'Connect Wallet'}
+          </button>
+        </div>
 
         {/* Mobile / Tablet Tools button cleanly in the header */}
         {onToggleMobileTools && (
-          <button
+          <button 
             onClick={onToggleMobileTools}
-            className="md:hidden flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#FF4564] hover:bg-[#ff5a75] rounded-md shadow-sm border border-[#ff5a75]/30 transition-all shrink-0"
+            className={`sm:hidden p-1.5 rounded-md border ${
+              isDark 
+                ? 'border-neutral-800 text-neutral-400 bg-neutral-900' 
+                : 'border-neutral-200 text-neutral-600 bg-neutral-100'
+            }`}
           >
-            <Sliders className="w-3.5 h-3.5" />
-            <span>Tools</span>
+            <Sliders className="w-4 h-4" />
           </button>
         )}
       </div>
     </header>
   );
 }
-

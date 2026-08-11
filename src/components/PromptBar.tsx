@@ -19,35 +19,46 @@ export default function PromptBar({ currentElements, onGenerated, onAddCommit, t
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
+    const trimmedPrompt = prompt.trim();
+    
+    if (!trimmedPrompt) {
+      setErrorMessage("Please enter a prompt");
+      return;
+    }
 
     setLoading(true);
     setErrorMessage(null);
+    
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          prompt,
+          prompt: trimmedPrompt,
           currentElements,
         }),
       });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(errorData.error || `Server error: ${res.status}`);
+      }
+      
       const data = await res.json();
       
-      if (res.ok && data.elements) {
+      if (data.elements && Array.isArray(data.elements)) {
         const newEls: CanvasElement[] = data.elements.map((el: any) => ({
           ...el,
           id: el.id || uuidv4(),
         }));
         onGenerated(newEls);
-        onAddCommit(`AI: ${prompt}`);
+        onAddCommit(`AI: ${trimmedPrompt}`);
         setPrompt("");
       } else {
-        setErrorMessage(data.error || "Failed to generate layout");
+        throw new Error("Invalid response format from server");
       }
     } catch (err: any) {
-      console.error(err);
-      setErrorMessage("Network error connecting to AI endpoint.");
+      setErrorMessage(err?.message || "Failed to generate layout");
     } finally {
       setLoading(false);
     }
@@ -86,7 +97,7 @@ export default function PromptBar({ currentElements, onGenerated, onAddCommit, t
         <button
           type="submit"
           disabled={loading || !prompt.trim()}
-          className="flex items-center gap-2 text-white bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:bg-neutral-800 disabled:text-neutral-500 shadow-md"
+          className="flex items-center gap-2 text-white bg-[#FF4564] hover:bg-[#ff2a4d] px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:bg-neutral-800 disabled:text-neutral-500 shadow-md disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
           <span>Generate</span>

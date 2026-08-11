@@ -9,6 +9,26 @@
   }
 }
 
-* {
-  cursor: url("data:image/svg+xml;utf8,<svg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M5.65376 1.15003L22.6538 10.15C23.5186 10.6067 23.4975 11.8385 22.6162 12.261L14.7335 16.037L9.93282 23.3638C9.43194 24.1281 8.24357 23.9576 7.97127 23.0847L5.65376 1.15003Z' fill='%23FF4564' stroke='white' stroke-width='2' stroke-linejoin='round'/></svg>"), auto !important;
+body {
+  cursor: url("data:image/svg+xml;utf8,<svg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M5.65376 1.15003L22.6538 10.15C23.5186 10.6067 23.4975 11.8385 22.6162 12.261L14.7335 16.037L9.93282 23.3638C9.43194 24.1281 8.24357 23.9576 7.97127 23.0847L5.65376 1.15003Z' fill='%23FF4564' stroke='white' stroke-width='2' stroke-linejoin='round'/></svg>"), auto;
+}
+
+/* Override Solana Wallet Adapter Button Branding */
+.wallet-adapter-button-trigger, .wallet-adapter-button {
+  background-color: #ffe0e5 !important;
+  color: #FF4564 !important;
+  font-family: inherit !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  border-radius: 0.5rem !important;
+  transition: all 0.2s ease !important;
+  height: 40px !important;
+  line-height: 40px !important;
+  padding: 0 1.25rem !important;
+  box-shadow: 0 4px 6px -1px rgba(255, 224, 229, 0.3) !important;
+}
+
+.wallet-adapter-button-trigger:hover, .wallet-adapter-button:hover {
+  background-color: #ffc2cc !important;
+  transform: scale(1.02);
 }

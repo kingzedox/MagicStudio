@@ -1,6 +1,7 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { Stage, Layer, Rect, Text, Transformer, Circle, Star, Image, RegularPolygon } from "react-konva";
 import { CanvasElement } from "../types";
+import { CANVAS_WIDTH, CANVAS_HEIGHT, MAX_UNDO_HISTORY } from "../constants";
 
 interface CanvasAreaProps {
   elements: CanvasElement[];
@@ -11,6 +12,13 @@ interface CanvasAreaProps {
   setSelectedId: (id: string | null) => void;
   onAddCommit: (desc: string) => void;
   theme?: 'dark' | 'light';
+  onUpdateElement?: (element: CanvasElement) => void;
+}
+
+export interface CanvasAreaHandle {
+  getStage: () => any;
+  undo: () => void;
+  redo: () => void;
 }
 
 function KonvaImageItem({ el, commonProps }: { el: CanvasElement; commonProps: any }) {
@@ -38,7 +46,7 @@ function KonvaImageItem({ el, commonProps }: { el: CanvasElement; commonProps: a
   );
 }
 
-export default function CanvasArea({
+const CanvasArea = forwardRef(function CanvasArea({
   elements,
   setElements,
   selectedIds = [],
@@ -46,12 +54,15 @@ export default function CanvasArea({
   selectedId,
   setSelectedId,
   onAddCommit,
-  theme = 'dark'
-}: CanvasAreaProps) {
+  theme = 'dark',
+  onUpdateElement
+}: CanvasAreaProps, ref: React.Ref<CanvasAreaHandle>) {
   const trRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
+
+
   
   // Inline text editing state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -60,7 +71,7 @@ export default function CanvasArea({
   const [selectionBox, setSelectionBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Undo / Redo History Stack
+  // Undo / Redo History Stack with limit
   const historyRef = useRef<CanvasElement[][]>([elements]);
   const historyIndexRef = useRef<number>(0);
   const isUndoRedoAction = useRef<boolean>(false);
@@ -72,8 +83,14 @@ export default function CanvasArea({
     }
     const currentHist = historyRef.current[historyIndexRef.current];
     if (JSON.stringify(currentHist) !== JSON.stringify(elements)) {
-      const sliced = historyRef.current.slice(0, historyIndexRef.current + 1);
+      let sliced = historyRef.current.slice(0, historyIndexRef.current + 1);
       sliced.push(elements);
+      
+      // Limit history to MAX_UNDO_HISTORY entries
+      if (sliced.length > MAX_UNDO_HISTORY) {
+        sliced = sliced.slice(sliced.length - MAX_UNDO_HISTORY);
+      }
+      
       historyRef.current = sliced;
       historyIndexRef.current = sliced.length - 1;
     }
@@ -96,6 +113,12 @@ export default function CanvasArea({
       onAddCommit("Redo action");
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    getStage: () => stageRef.current,
+    undo: () => handleUndo(),
+    redo: () => handleRedo(),
+  }));
 
   const effectiveSelectedIds = selectedIds.length > 0 ? selectedIds : (selectedId ? [selectedId] : []);
 
@@ -282,8 +305,9 @@ export default function CanvasArea({
     const node = e.target;
     const isMulti = effectiveSelectedIds.includes(id) && effectiveSelectedIds.length > 1;
 
+    let newEls = elements;
     if (isMulti) {
-      const newEls = elements.map(el => {
+      newEls = elements.map(el => {
         if (effectiveSelectedIds.includes(el.id)) {
           const shapeNode = layerRef.current.findOne(`#${el.id}`);
           if (shapeNode) {
@@ -294,7 +318,7 @@ export default function CanvasArea({
       });
       setElements(newEls);
     } else {
-      const newEls = elements.map(el => {
+      newEls = elements.map(el => {
         if (el.id === id) {
           return { ...el, x: node.x(), y: node.y() };
         }
@@ -303,6 +327,18 @@ export default function CanvasArea({
       setElements(newEls);
     }
     onAddCommit("Moved element(s)");
+    
+    if (onUpdateElement) {
+      if (isMulti) {
+        effectiveSelectedIds.forEach(selectedId => {
+          const el = newEls.find(e => e.id === selectedId);
+          if (el) onUpdateElement(el);
+        });
+      } else {
+        const movedElement = newEls.find(el => el.id === id);
+        if (movedElement) onUpdateElement(movedElement);
+      }
+    }
   };
 
   const handleTransformEnd = () => {
@@ -333,29 +369,64 @@ export default function CanvasArea({
 
     setElements(newEls);
     onAddCommit("Transformed element(s)");
+    
+    if (onUpdateElement) {
+      selectedNodes.forEach((node: any) => {
+        const transformedEl = newEls.find(el => el.id === node.id());
+        if (transformedEl) onUpdateElement(transformedEl);
+      });
+    }
   };
 
-  const commonProps = (el: CanvasElement) => ({
-    id: el.id,
-    x: el.x,
-    y: el.y,
-    rotation: el.rotation || 0,
-    fill: el.color,
-    opacity: el.opacity ?? 1,
-    stroke: el.stroke,
-    strokeWidth: el.strokeWidth || 0,
-    draggable: !el.locked,
-    onClick: (e: any) => handleElementClick(el, e),
-    onTap: (e: any) => handleElementClick(el, e),
-    onDblClick: (e: any) => {
-      handleElementClick(el, e);
-      if (el.type === 'text') {
-        setEditingId(el.id);
+  const commonProps = (el: CanvasElement) => {
+    const baseProps: any = {
+      id: el.id,
+      x: el.x,
+      y: el.y,
+      rotation: el.rotation || 0,
+      scaleX: el.scaleX || 1,
+      scaleY: el.scaleY || 1,
+      opacity: el.opacity ?? 1,
+      stroke: el.stroke,
+      strokeWidth: el.strokeWidth || 0,
+      draggable: !el.locked,
+      onClick: (e: any) => handleElementClick(el, e),
+      onTap: (e: any) => handleElementClick(el, e),
+      onDblClick: (e: any) => {
+        handleElementClick(el, e);
+        if (el.type === 'text') {
+          setEditingId(el.id);
+        }
+      },
+      onDragEnd: (e: any) => handleDragEnd(e, el.id),
+      onTransformEnd: () => handleTransformEnd(),
+    };
+    
+    // Support gradients
+    if (el.gradient) {
+      if (el.gradient.type === 'linear') {
+        const angle = (el.gradient.angle || 90) * (Math.PI / 180);
+        const gradientLength = Math.sqrt(el.w * el.w + el.h * el.h);
+        
+        baseProps.fillLinearGradientStartPoint = { x: 0, y: 0 };
+        baseProps.fillLinearGradientEndPoint = { 
+          x: Math.cos(angle) * gradientLength, 
+          y: Math.sin(angle) * gradientLength 
+        };
+        baseProps.fillLinearGradientColorStops = el.gradient.stops.flatMap(stop => [stop.offset, stop.color]);
+      } else if (el.gradient.type === 'radial') {
+        baseProps.fillRadialGradientStartPoint = { x: el.w / 2, y: el.h / 2 };
+        baseProps.fillRadialGradientEndPoint = { x: el.w / 2, y: el.h / 2 };
+        baseProps.fillRadialGradientStartRadius = 0;
+        baseProps.fillRadialGradientEndRadius = Math.max(el.w, el.h) / 2;
+        baseProps.fillRadialGradientColorStops = el.gradient.stops.flatMap(stop => [stop.offset, stop.color]);
       }
-    },
-    onDragEnd: (e: any) => handleDragEnd(e, el.id),
-    onTransformEnd: () => handleTransformEnd(),
-  });
+    } else {
+      baseProps.fill = el.color;
+    }
+
+    return baseProps;
+  };
 
   const editingEl = elements.find(e => e.id === editingId);
 
@@ -377,13 +448,74 @@ export default function CanvasArea({
       />
       
       <div className="max-w-full max-h-full flex items-center justify-center overflow-auto">
-        <div 
-          ref={containerRef} 
-          className={`shadow-2xl rounded-sm overflow-hidden relative shrink-0 transition-colors ${
-            isDark ? 'bg-neutral-800' : 'bg-white border border-neutral-300'
-          }`} 
-          style={{ width: 800, height: 600 }}
-        >
+        {/* Rulers Container */}
+        <div className="relative inline-block">
+          {/* Horizontal Ruler (Top) */}
+          <div 
+            className={`absolute top-0 left-6 h-6 ${
+              isDark ? 'bg-neutral-900 border-b border-white/10' : 'bg-neutral-50 border-b border-neutral-300'
+            }`}
+            style={{ width: CANVAS_WIDTH }}
+          >
+            {Array.from({ length: Math.floor(CANVAS_WIDTH / 50) + 1 }).map((_, i) => {
+              const pos = i * 50;
+              return (
+                <div key={`h-${pos}`} className="absolute" style={{ left: pos }}>
+                  <div className={`w-px ${pos % 100 === 0 ? 'h-3' : 'h-2'} ${isDark ? 'bg-white/30' : 'bg-neutral-400'}`} />
+                  {pos % 100 === 0 && pos > 0 && (
+                    <span className={`absolute top-3.5 left-1 text-[9px] font-mono ${isDark ? 'text-neutral-500' : 'text-neutral-600'}`}>
+                      {pos}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Vertical Ruler (Left) */}
+          <div 
+            className={`absolute top-6 left-0 w-6 ${
+              isDark ? 'bg-neutral-900 border-r border-white/10' : 'bg-neutral-50 border-r border-neutral-300'
+            }`}
+            style={{ height: CANVAS_HEIGHT }}
+          >
+            {Array.from({ length: Math.floor(CANVAS_HEIGHT / 50) + 1 }).map((_, i) => {
+              const pos = i * 50;
+              return (
+                <div key={`v-${pos}`} className="absolute" style={{ top: pos }}>
+                  <div className={`h-px ${pos % 100 === 0 ? 'w-3' : 'w-2'} ml-auto ${isDark ? 'bg-white/30' : 'bg-neutral-400'}`} />
+                  {pos % 100 === 0 && pos > 0 && (
+                    <span 
+                      className={`absolute left-1 text-[9px] font-mono whitespace-nowrap ${isDark ? 'text-neutral-500' : 'text-neutral-600'}`}
+                      style={{ 
+                        transform: 'rotate(-90deg)',
+                        transformOrigin: 'left center',
+                        top: '10px'
+                      }}
+                    >
+                      {pos}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Corner Square */}
+          <div 
+            className={`absolute top-0 left-0 w-6 h-6 ${
+              isDark ? 'bg-neutral-900 border-r border-b border-white/10' : 'bg-neutral-50 border-r border-b border-neutral-300'
+            }`}
+          />
+
+          {/* Canvas Container */}
+          <div 
+            ref={containerRef} 
+            className={`ml-6 mt-6 shadow-2xl rounded-sm overflow-hidden relative shrink-0 transition-colors ${
+              isDark ? 'bg-neutral-800' : 'bg-white border border-neutral-300'
+            }`} 
+            style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
+          >
         {/* Inline Canvas Text Editor Overlay */}
         {editingEl && editingEl.type === 'text' && (
           <textarea
@@ -431,8 +563,8 @@ export default function CanvasArea({
 
         <Stage 
           ref={stageRef}
-          width={800} 
-          height={600} 
+          width={CANVAS_WIDTH} 
+          height={CANVAS_HEIGHT} 
           onMouseDown={handleStageMouseDown} 
           onMouseMove={handleStageMouseMove}
           onMouseUp={handleStageMouseUp}
@@ -550,8 +682,11 @@ export default function CanvasArea({
             />
           </Layer>
         </Stage>
+        </div>
+        </div>
       </div>
     </div>
-  </div>
-);
-}
+  );
+});
+
+export default CanvasArea;

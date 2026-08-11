@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { 
   Zap, ArrowRight, CheckCircle2, Copy, Check, 
   Layers, Sun, Moon, Cpu, Move, Square, Circle, 
@@ -82,6 +84,7 @@ interface HomepageProps {
 export default function Homepage({ onLaunchStudio, theme = 'dark', onToggleTheme }: HomepageProps) {
   const [roomInput, setRoomInput] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
+  const { publicKey } = useWallet();
   
   // Interactive showcase state inside the vector studio preview component
   const [selectedPreviewId, setSelectedPreviewId] = useState<string>("1");
@@ -107,7 +110,17 @@ export default function Homepage({ onLaunchStudio, theme = 'dark', onToggleTheme
   const handleJoinRoom = (e: React.FormEvent) => {
     e.preventDefault();
     if (!roomInput.trim()) return;
-    const cleanRoom = roomInput.trim().replace(/^#/, "");
+    let cleanRoom = roomInput.trim().replace(/^#/, "");
+    
+    // Handle pasted URLs — extract the room param
+    try {
+      const url = new URL(cleanRoom);
+      const roomParam = url.searchParams.get("room");
+      if (roomParam) cleanRoom = roomParam;
+    } catch {
+      // Not a URL, use as-is
+    }
+    
     onLaunchStudio(cleanRoom);
   };
 
@@ -169,7 +182,6 @@ export default function Homepage({ onLaunchStudio, theme = 'dark', onToggleTheme
           {/* Nav Links + Controls */}
           <div className="flex items-center gap-4 sm:gap-6">
 
-            {/* Theme Toggle Button */}
             {onToggleTheme && (
               <button
                 onClick={onToggleTheme}
@@ -184,12 +196,7 @@ export default function Homepage({ onLaunchStudio, theme = 'dark', onToggleTheme
               </button>
             )}
 
-            <button
-              onClick={handleCreateNew}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#ffe0e5] hover:bg-[#ffc2cc] text-[#FF4564] rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-md shadow-[#ffe0e5]/30 hover:scale-[1.02]"
-            >
-              <span>Launch Studio</span>
-            </button>
+            <WalletMultiButton />
           </div>
         </div>
       </nav>
@@ -600,7 +607,7 @@ export default function Homepage({ onLaunchStudio, theme = 'dark', onToggleTheme
         </section>
 
 {/* 5. Footer */}
-      <footer className="bg-transparent text-white pt-24 pb-0 px-6 lg:px-12 mt-12 relative overflow-hidden">
+      <footer className={`bg-transparent pt-24 pb-0 px-6 lg:px-12 mt-12 relative overflow-hidden ${isDark ? 'text-white' : 'text-neutral-900'}`}>
         <div className="max-w-7xl mx-auto flex flex-col">
           {/* Top Huge Text */}
           <div className="flex flex-col md:flex-row justify-start items-center md:justify-end gap-4 md:gap-8 mb-24 md:mb-32 pr-0 md:pr-12 w-full flex-wrap">
