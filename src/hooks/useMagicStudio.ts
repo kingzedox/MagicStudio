@@ -209,8 +209,8 @@ export function useMagicStudio(roomId: string | null) {
     h: number,
     color: number[]
   ) => {
-    if (!erProgram || !canvasStatePda || !wallet.publicKey) {
-      throw new Error("ER Program not initialized or wallet not connected");
+    if (!erProgram || !canvasStatePda) {
+      throw new Error("ER Program not initialized");
     }
     
     const { blockhash } = await erConnection.getLatestBlockhash();
@@ -226,7 +226,6 @@ export function useMagicStudio(roomId: string | null) {
     )
     .accounts({
       canvasState: canvasStatePda,
-      authority: BURNER_WALLET.publicKey,
     })
     .instruction();
 
