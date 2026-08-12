@@ -156,7 +156,7 @@ export function useMagicStudio(roomId: string | null) {
     const tx = await program.methods.initializeCanvas(roomId)
       .accounts({
         canvasState: canvasStatePda,
-        authority: wallet.publicKey,
+        payer: wallet.publicKey,
         systemProgram: SystemProgram.programId,
       })
       .rpc();
@@ -181,7 +181,7 @@ export function useMagicStudio(roomId: string | null) {
     }
     
     const delegationRecord = delegationRecordPdaFromDelegatedAccount(canvasStatePda);
-    const buffer = delegateBufferPdaFromDelegatedAccountAndOwnerProgram(canvasStatePda, program.programId);
+    const buffer = delegateBufferPdaFromDelegatedAccountAndOwnerProgram(canvasStatePda, PROGRAM_ID);
     const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(canvasStatePda);
 
     const tx = await program.methods.delegate()
@@ -189,13 +189,13 @@ export function useMagicStudio(roomId: string | null) {
         canvasState: canvasStatePda,
         payer: wallet.publicKey,
         systemProgram: SystemProgram.programId,
+        buffer,
+        delegationRecord,
+        delegationMetadata,
+        delegationProgram: DELEGATION_PROGRAM_ID,
+        magicProgram: PROGRAM_ID,
       })
-      .remainingAccounts([
-        { pubkey: buffer, isWritable: true, isSigner: false },
-        { pubkey: delegationRecord, isWritable: true, isSigner: false },
-        { pubkey: delegationMetadata, isWritable: true, isSigner: false }
-      ])
-      .rpc();
+      .rpc({ skipPreflight: true });
     
     return tx;
   };
