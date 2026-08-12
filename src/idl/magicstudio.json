@@ -1,4 +1,4 @@
-export const IDL = {
+{
   "version": "0.1.0",
   "name": "magicstudio",
   "instructions": [
@@ -7,18 +7,18 @@ export const IDL = {
       "accounts": [
         {
           "name": "canvasState",
-          "writable": true,
-          "signer": false
+          "isMut": true,
+          "isSigner": false
         },
         {
           "name": "payer",
-          "writable": true,
-          "signer": true
+          "isMut": true,
+          "isSigner": true
         },
         {
           "name": "systemProgram",
-          "writable": false,
-          "signer": false
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
@@ -26,16 +26,6 @@ export const IDL = {
           "name": "roomId",
           "type": "string"
         }
-      ],
-      "discriminator": [
-        223,
-        91,
-        237,
-        137,
-        41,
-        27,
-        240,
-        59
       ]
     },
     {
@@ -43,136 +33,106 @@ export const IDL = {
       "accounts": [
         {
           "name": "canvasState",
-          "writable": true,
-          "signer": false
+          "isMut": true,
+          "isSigner": false
         },
         {
           "name": "payer",
-          "writable": true,
-          "signer": true
+          "isMut": true,
+          "isSigner": true
         },
         {
           "name": "systemProgram",
-          "writable": false,
-          "signer": false
+          "isMut": false,
+          "isSigner": false
         },
         {
           "name": "buffer",
-          "writable": true,
-          "signer": false
+          "isMut": true,
+          "isSigner": false
         },
         {
           "name": "delegationRecord",
-          "writable": true,
-          "signer": false
+          "isMut": true,
+          "isSigner": false
         },
         {
           "name": "delegationMetadata",
-          "writable": true,
-          "signer": false
+          "isMut": true,
+          "isSigner": false
         },
         {
           "name": "delegationProgram",
-          "writable": false,
-          "signer": false
+          "isMut": false,
+          "isSigner": false
         },
         {
           "name": "magicProgramEngine",
-          "writable": false,
-          "signer": false
+          "isMut": false,
+          "isSigner": false
         }
       ],
-      "args": [],
-      "discriminator": [
-        90,
-        147,
-        75,
-        178,
-        85,
-        88,
-        4,
-        137
-      ]
+      "args": []
     },
     {
       "name": "saveVersionSnapshot",
       "accounts": [
         {
           "name": "canvasState",
-          "writable": true,
-          "signer": false
+          "isMut": true,
+          "isSigner": false
         },
         {
           "name": "payer",
-          "writable": true,
-          "signer": true
+          "isMut": true,
+          "isSigner": true
         },
         {
           "name": "magicContext",
-          "writable": false,
-          "signer": false
+          "isMut": false,
+          "isSigner": false
         },
         {
           "name": "magicProgram",
-          "writable": false,
-          "signer": false
+          "isMut": false,
+          "isSigner": false
         }
       ],
-      "args": [],
-      "discriminator": [
-        216,
-        132,
-        178,
-        50,
-        64,
-        84,
-        120,
-        114
-      ]
+      "args": []
     },
     {
       "name": "publishAndUndelegate",
       "accounts": [
         {
           "name": "canvasState",
-          "writable": true,
-          "signer": false
+          "isMut": true,
+          "isSigner": false
         },
         {
           "name": "payer",
-          "writable": true,
-          "signer": true
+          "isMut": true,
+          "isSigner": true
         },
         {
           "name": "magicContext",
-          "writable": false,
-          "signer": false
+          "isMut": false,
+          "isSigner": false
         },
         {
           "name": "magicProgram",
-          "writable": false,
-          "signer": false
+          "isMut": false,
+          "isSigner": false
         }
       ],
-      "args": [],
-      "discriminator": [
-        11,
-        73,
-        76,
-        148,
-        172,
-        246,
-        78,
-        185
-      ]
+      "args": []
     },
     {
       "name": "updateElement",
       "accounts": [
         {
           "name": "canvasState",
-          "writable": true,
-          "signer": false
+          "isMut": true,
+          "isSigner": false
         }
       ],
       "args": [
@@ -209,35 +169,10 @@ export const IDL = {
             ]
           }
         }
-      ],
-      "discriminator": [
-        216,
-        199,
-        35,
-        123,
-        11,
-        151,
-        116,
-        61
       ]
     }
   ],
   "accounts": [
-    {
-      "name": "CanvasState",
-      "discriminator": [
-        64,
-        117,
-        74,
-        242,
-        207,
-        52,
-        148,
-        249
-      ]
-    }
-  ],
-  "types": [
     {
       "name": "CanvasState",
       "type": {
@@ -251,15 +186,15 @@ export const IDL = {
             "name": "elements",
             "type": {
               "vec": {
-                "defined": {
-                  "name": "Element"
-                }
+                "defined": "Element"
               }
             }
           }
         ]
       }
-    },
+    }
+  ],
+  "types": [
     {
       "name": "Element",
       "type": {
@@ -314,6 +249,7 @@ export const IDL = {
       "msg": "Canvas is full"
     }
   ],
-  "address": "5nRcojZxaqi3SYd4qBUdD8NzYPEBbWHUkbcHAACY23A2"
-} as const;
-export type MagicStudio = typeof IDL;
+  "metadata": {
+    "address": "5nRcojZxaqi3SYd4qBUdD8NzYPEBbWHUkbcHAACY23A2"
+  }
+}

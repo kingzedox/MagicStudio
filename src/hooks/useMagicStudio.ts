@@ -181,7 +181,7 @@ export function useMagicStudio(roomId: string | null) {
     }
     
     const delegationRecord = delegationRecordPdaFromDelegatedAccount(canvasStatePda);
-    const buffer = delegateBufferPdaFromDelegatedAccountAndOwnerProgram(canvasStatePda, PROGRAM_ID);
+    const buffer = delegateBufferPdaFromDelegatedAccountAndOwnerProgram(canvasStatePda, program.programId);
     const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(canvasStatePda);
 
     const tx = await program.methods.delegate()
@@ -193,9 +193,9 @@ export function useMagicStudio(roomId: string | null) {
         delegationRecord,
         delegationMetadata,
         delegationProgram: DELEGATION_PROGRAM_ID,
-        magicProgram: PROGRAM_ID,
+        magicProgramEngine: MAGIC_PROGRAM_ID,
       })
-      .rpc({ skipPreflight: true });
+      .rpc();
     
     return tx;
   };
@@ -209,8 +209,8 @@ export function useMagicStudio(roomId: string | null) {
     h: number,
     color: number[]
   ) => {
-    if (!erProgram || !canvasStatePda) {
-      throw new Error("ER Program not initialized");
+    if (!erProgram || !canvasStatePda || !wallet.publicKey) {
+      throw new Error("ER Program not initialized or wallet not connected");
     }
     
     const { blockhash } = await erConnection.getLatestBlockhash();
@@ -226,6 +226,7 @@ export function useMagicStudio(roomId: string | null) {
     )
     .accounts({
       canvasState: canvasStatePda,
+      authority: BURNER_WALLET.publicKey,
     })
     .instruction();
 
