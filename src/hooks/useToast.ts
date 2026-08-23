@@ -1,37 +1,34 @@
-import { useState, useCallback } from 'react';
-import { ToastType } from '../components/Toast';
+'use client';
 
-interface ToastState {
+import { useState, useCallback } from 'react';
+
+export interface Toast {
   id: string;
   message: string;
-  type: ToastType;
+  type: 'success' | 'error' | 'loading';
 }
 
 export function useToast() {
-  const [toasts, setToasts] = useState<ToastState[]>([]);
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const showToast = useCallback((message: string, type: ToastType = 'info') => {
-    const id = Math.random().toString(36).substring(7);
+  const addToast = useCallback((message: string, type: Toast['type']): string => {
+    const id = crypto.randomUUID();
     setToasts(prev => [...prev, { id, message, type }]);
+    if (type !== 'loading') {
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+    }
     return id;
   }, []);
 
   const hideToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
+    setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
-
-  const success = useCallback((message: string) => showToast(message, 'success'), [showToast]);
-  const error = useCallback((message: string) => showToast(message, 'error'), [showToast]);
-  const info = useCallback((message: string) => showToast(message, 'info'), [showToast]);
-  const loading = useCallback((message: string) => showToast(message, 'loading'), [showToast]);
 
   return {
     toasts,
-    showToast,
     hideToast,
-    success,
-    error,
-    info,
-    loading
+    success: (msg: string) => addToast(msg, 'success'),
+    error: (msg: string) => addToast(msg, 'error'),
+    loading: (msg: string) => addToast(msg, 'loading'),
   };
 }
