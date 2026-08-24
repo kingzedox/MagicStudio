@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { X, Upload, Wand2, Sparkles, Loader2, CheckCircle, ExternalLink } from 'lucide-react';
 import { useWallets } from '@privy-io/react-auth';
 import { Connection } from '@solana/web3.js';
 import { uploadImageToPinata, uploadMetadataToPinata } from '@/lib/storage/pinata';
@@ -149,7 +150,7 @@ export default function MintPanel({ elements, canvasRef, roomId, onClose, onSucc
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--color-border)]">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-[#FF4564] flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div>
@@ -181,7 +182,7 @@ export default function MintPanel({ elements, canvasRef, roomId, onClose, onSucc
               <button
                 onClick={handleAIGenerate}
                 disabled={isGeneratingMeta}
-                className="w-full px-4 py-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-sm font-medium hover:bg-indigo-500/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full px-4 py-3 rounded-xl bg-[#FF4564]/10 border border-[#FF4564]/20 text-[#FF4564] text-sm font-medium hover:bg-[#FF4564]/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isGeneratingMeta ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Generating with AI...</>
@@ -199,7 +200,7 @@ export default function MintPanel({ elements, canvasRef, roomId, onClose, onSucc
                   onChange={(e) => setName(e.target.value)}
                   placeholder="My Awesome NFT"
                   maxLength={32}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-[#FF4564]/50"
                 />
               </div>
 
@@ -211,7 +212,7 @@ export default function MintPanel({ elements, canvasRef, roomId, onClose, onSucc
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe your NFT..."
                   rows={3}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-none"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-[#FF4564]/50 resize-none"
                 />
               </div>
 
@@ -224,7 +225,7 @@ export default function MintPanel({ elements, canvasRef, roomId, onClose, onSucc
                     value={symbol}
                     onChange={(e) => setSymbol(e.target.value.toUpperCase())}
                     maxLength={10}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-[#FF4564]/50"
                   />
                 </div>
                 <div>
@@ -234,7 +235,7 @@ export default function MintPanel({ elements, canvasRef, roomId, onClose, onSucc
                     value={royaltyPercent}
                     onChange={(e) => setRoyaltyPercent(Math.min(100, Math.max(0, Number(e.target.value))))}
                     min={0} max={100}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-[#FF4564]/50"
                   />
                 </div>
               </div>
@@ -243,7 +244,7 @@ export default function MintPanel({ elements, canvasRef, roomId, onClose, onSucc
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs text-[var(--color-text-secondary)]">Attributes</label>
-                  <button onClick={addAttribute} className="text-xs text-indigo-400 hover:text-indigo-300">
+                  <button onClick={addAttribute} className="text-xs text-[#FF4564] hover:text-[#FF4564]/80">
                     + Add
                   </button>
                 </div>
@@ -258,7 +259,7 @@ export default function MintPanel({ elements, canvasRef, roomId, onClose, onSucc
                         setAttributes(updated);
                       }}
                       placeholder="Trait"
-                      className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                      className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-[#FF4564]/50"
                     />
                     <input
                       type="text"
@@ -269,7 +270,7 @@ export default function MintPanel({ elements, canvasRef, roomId, onClose, onSucc
                         setAttributes(updated);
                       }}
                       placeholder="Value"
-                      className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                      className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-[#FF4564]/50"
                     />
                     <button
                       onClick={() => removeAttribute(i)}
@@ -285,7 +286,7 @@ export default function MintPanel({ elements, canvasRef, roomId, onClose, onSucc
               <button
                 onClick={handleMint}
                 disabled={!activeWallet || !name.trim()}
-                className="w-full px-4 py-3.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full bg-[#FF4564] text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Upload className="w-4 h-4" />
                 Upload to IPFS & Mint (~0.003 SOL)

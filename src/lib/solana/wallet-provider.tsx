@@ -38,8 +38,9 @@ export default function SolanaProvider({ children }: { children: React.ReactNode
       config={{
         appearance: {
           theme: 'dark',
-          accentColor: '#6366f1',
+          accentColor: '#FF4564',
           logo: 'https://cryptologos.cc/logos/solana-sol-logo.png',
+          walletChainType: 'solana-only',
         },
         externalWallets: {
           solana: {

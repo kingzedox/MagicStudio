@@ -1,4 +1,4 @@
-export type ElementType = 'rect' | 'text' | 'image' | 'circle' | 'star' | 'triangle' | 'freehand';
+export type ElementType = 'rect' | 'text' | 'image' | 'circle' | 'star' | 'triangle' | 'freehand' | 'eraser';
 
 export interface GradientStop {
   color: string;

@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import LoginButton from '@/components/shared/LoginButton';
 import { v4 as uuidv4 } from 'uuid';
 import {
   ArrowLeft, Download, Share2, Sparkles, Wand2,
@@ -34,24 +33,63 @@ interface StudioClientProps {
 
 export default function StudioClient({ roomId }: StudioClientProps) {
   const router = useRouter();
-  const { publicKey } = useWallet();
   const { toasts, hideToast, success, error, loading } = useToast();
 
   const [elements, setElements] = useState<CanvasElement[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeTool, setActiveTool] = useState<ElementType | 'select' | 'eraser'>('select');
-  const [brushColor, setBrushColor] = useState('#6366f1');
+  const [brushColor, setBrushColor] = useState('#FF4564');
   const [brushSize, setBrushSize] = useState(3);
+  const [canvasBg, setCanvasBg] = useState('#1a1a2e');
   const [showMintPanel, setShowMintPanel] = useState(false);
-  const [timeline, setTimeline] = useState<TimelineEvent[]>([{
-    id: uuidv4(),
-    version: 'v1.0',
-    description: 'Studio initialized',
-    timestamp: new Date().toISOString(),
-    type: 'creation',
-  }]);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    setTimeline([{
+      id: uuidv4(),
+      version: 'v1',
+      description: 'Canvas created',
+      timestamp: new Date().toISOString(),
+      type: 'creation'
+    }]);
+  }, []);
 
   const canvasRef = useRef<CanvasAreaHandle>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleToolClick = (toolType: ElementType | 'select' | 'eraser') => {
+    if (toolType === 'image') {
+      fileInputRef.current?.click();
+    }
+    setActiveTool(toolType);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const url = URL.createObjectURL(file);
+    const newElement: CanvasElement = {
+      id: uuidv4(),
+      type: 'image',
+      x: 100,
+      y: 100,
+      w: 300,
+      h: 300, // Will be overridden by natural aspect ratio if wanted
+      color: '#ffffff',
+      imageUrl: url,
+    };
+    
+    setElements(prev => [...prev, newElement]);
+    setSelectedId(newElement.id);
+    setActiveTool('select');
+    addTimelineEvent('Added image');
+    
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const addTimelineEvent = useCallback((desc: string, type: TimelineEvent['type'] = 'edit') => {
     setTimeline(prev => [{
@@ -95,7 +133,7 @@ export default function StudioClient({ roomId }: StudioClientProps) {
     }
   };
 
-  const selectedElement = elements.find(el => el.id === selectedId);
+  const selectedElement = selectedIds.length === 1 ? elements.find(el => el.id === selectedIds[0]) : null;
 
   return (
     <div className="flex flex-col h-screen bg-[var(--color-bg)] overflow-hidden">
@@ -114,7 +152,7 @@ export default function StudioClient({ roomId }: StudioClientProps) {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-md bg-[#FF4564] flex items-center justify-center">
               <Sparkles className="w-3 h-3 text-white" />
             </div>
             <span className="text-sm font-semibold">{roomId}</span>
@@ -130,12 +168,12 @@ export default function StudioClient({ roomId }: StudioClientProps) {
           </button>
           <button
             onClick={() => setShowMintPanel(true)}
-            className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-all flex items-center gap-2"
+            className="px-4 py-2 bg-[#FF4564] text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-all flex items-center gap-2"
           >
             <Wand2 className="w-4 h-4" />
             Mint NFT
           </button>
-          <WalletMultiButton />
+          <LoginButton />
         </div>
       </header>
 
@@ -146,10 +184,10 @@ export default function StudioClient({ roomId }: StudioClientProps) {
           {TOOLS.map(tool => (
             <button
               key={tool.type}
-              onClick={() => setActiveTool(tool.type)}
+              onClick={() => handleToolClick(tool.type)}
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
                 activeTool === tool.type
-                  ? 'bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/50'
+                  ? 'bg-[#FF4564]/20 text-[#FF4564] ring-1 ring-[#FF4564]/50'
                   : 'hover:bg-white/5 text-[var(--color-text-secondary)]'
               }`}
               title={tool.label}
@@ -175,18 +213,13 @@ export default function StudioClient({ roomId }: StudioClientProps) {
             <Redo2 className="w-4 h-4" />
           </button>
 
-          {/* Color picker */}
-          <div className="mt-auto mb-2">
-            <label className="w-8 h-8 rounded-full border-2 border-[var(--color-border)] overflow-hidden cursor-pointer block relative">
-              <input
-                type="color"
-                value={brushColor}
-                onChange={(e) => setBrushColor(e.target.value)}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
-              <div className="w-full h-full" style={{ background: brushColor }} />
-            </label>
-          </div>
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={handleImageUpload}
+          />
         </div>
 
         {/* Canvas */}
@@ -194,12 +227,14 @@ export default function StudioClient({ roomId }: StudioClientProps) {
           ref={canvasRef}
           elements={elements}
           setElements={setElements}
-          selectedId={selectedId}
-          setSelectedId={setSelectedId}
+          selectedIds={selectedIds}
+          setSelectedIds={setSelectedIds}
           activeTool={activeTool}
           brushColor={brushColor}
           brushSize={brushSize}
+          canvasBg={canvasBg}
           onAddCommit={addTimelineEvent}
+          setActiveTool={setActiveTool}
         />
 
         {/* Right sidebar — properties */}
@@ -208,6 +243,31 @@ export default function StudioClient({ roomId }: StudioClientProps) {
             <h3 className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">
               Properties
             </h3>
+
+            {/* Canvas Background Settings */}
+            <div className="mb-6">
+              <label className="text-xs text-[var(--color-text-secondary)] mb-2 block">Canvas Background</label>
+              <div className="flex gap-2">
+                {['#1a1a2e', '#ffffff', '#e5e7eb', '#000000'].map(bg => (
+                  <button
+                    key={bg}
+                    onClick={() => setCanvasBg(bg)}
+                    className={`w-6 h-6 rounded-full border-2 ${canvasBg === bg ? 'border-[#FF4564]' : 'border-transparent'} shadow-sm`}
+                    style={{ background: bg }}
+                    title={`Set background to ${bg}`}
+                  />
+                ))}
+                <label className="w-6 h-6 rounded-full border-2 border-dashed border-[var(--color-border)] flex items-center justify-center cursor-pointer hover:bg-white/5 transition-colors">
+                  <input
+                    type="color"
+                    value={canvasBg}
+                    onChange={(e) => setCanvasBg(e.target.value)}
+                    className="absolute opacity-0 w-0 h-0"
+                  />
+                  <span className="text-[10px] text-[var(--color-text-secondary)]">+</span>
+                </label>
+              </div>
+            </div>
 
             {selectedElement ? (
               <div className="space-y-4">
@@ -222,9 +282,9 @@ export default function StudioClient({ roomId }: StudioClientProps) {
                       type="number"
                       value={Math.round(selectedElement.x)}
                       onChange={(e) => setElements(els => els.map(el =>
-                        el.id === selectedId ? { ...el, x: Number(e.target.value) } : el
+                        selectedIds.includes(el.id) ? { ...el, x: Number(e.target.value) } : el
                       ))}
-                      className="w-full mt-1 px-2 py-1.5 rounded-lg bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                      className="w-full mt-1 px-2 py-1.5 rounded-lg bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-[#FF4564]/50"
                     />
                   </div>
                   <div>
@@ -233,9 +293,9 @@ export default function StudioClient({ roomId }: StudioClientProps) {
                       type="number"
                       value={Math.round(selectedElement.y)}
                       onChange={(e) => setElements(els => els.map(el =>
-                        el.id === selectedId ? { ...el, y: Number(e.target.value) } : el
+                        selectedIds.includes(el.id) ? { ...el, y: Number(e.target.value) } : el
                       ))}
-                      className="w-full mt-1 px-2 py-1.5 rounded-lg bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                      className="w-full mt-1 px-2 py-1.5 rounded-lg bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-[#FF4564]/50"
                     />
                   </div>
                   <div>
@@ -244,9 +304,9 @@ export default function StudioClient({ roomId }: StudioClientProps) {
                       type="number"
                       value={Math.round(selectedElement.w)}
                       onChange={(e) => setElements(els => els.map(el =>
-                        el.id === selectedId ? { ...el, w: Number(e.target.value) } : el
+                        selectedIds.includes(el.id) ? { ...el, w: Number(e.target.value) } : el
                       ))}
-                      className="w-full mt-1 px-2 py-1.5 rounded-lg bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                      className="w-full mt-1 px-2 py-1.5 rounded-lg bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-[#FF4564]/50"
                     />
                   </div>
                   <div>
@@ -255,21 +315,32 @@ export default function StudioClient({ roomId }: StudioClientProps) {
                       type="number"
                       value={Math.round(selectedElement.h)}
                       onChange={(e) => setElements(els => els.map(el =>
-                        el.id === selectedId ? { ...el, h: Number(e.target.value) } : el
+                        selectedIds.includes(el.id) ? { ...el, h: Number(e.target.value) } : el
                       ))}
-                      className="w-full mt-1 px-2 py-1.5 rounded-lg bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                      className="w-full mt-1 px-2 py-1.5 rounded-lg bg-white/5 border border-[var(--color-border)] text-sm focus:outline-none focus:ring-1 focus:ring-[#FF4564]/50"
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="text-xs text-[var(--color-text-secondary)] mb-1 block">Color</label>
+                <div className="mb-4">
+                  <label className="text-xs text-[var(--color-text-secondary)] mb-2 block">Color</label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {['#FF4564', '#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#ffffff', '#000000'].map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setElements(els => els.map(el => selectedIds.includes(el.id) ? { ...el, color } : el))}
+                        className={`w-6 h-6 rounded-full border-2 ${selectedElement?.color === color ? 'border-white' : 'border-transparent'} shadow-sm`}
+                        style={{ background: color }}
+                        title={`Set color to ${color}`}
+                      />
+                    ))}
+                  </div>
                   <input
                     type="color"
-                    value={selectedElement.color || '#6366f1'}
+                    value={selectedElement?.color || '#FF4564'}
                     onChange={(e) => setElements(els => els.map(el =>
-                      el.id === selectedId ? { ...el, color: e.target.value } : el
+                      selectedIds.includes(el.id) ? { ...el, color: e.target.value } : el
                     ))}
-                    className="w-full h-8 rounded-lg cursor-pointer"
+                    className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-0 p-0"
                   />
                 </div>
                 <div>
@@ -277,29 +348,29 @@ export default function StudioClient({ roomId }: StudioClientProps) {
                   <input
                     type="range"
                     min="0" max="1" step="0.05"
-                    value={selectedElement.opacity ?? 1}
+                    value={selectedElement?.opacity ?? 1}
                     onChange={(e) => setElements(els => els.map(el =>
-                      el.id === selectedId ? { ...el, opacity: Number(e.target.value) } : el
+                      selectedIds.includes(el.id) ? { ...el, opacity: Number(e.target.value) } : el
                     ))}
-                    className="w-full accent-indigo-500"
+                    className="w-full accent-[#FF4564]"
                   />
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
                       setElements(els => els.map(el =>
-                        el.id === selectedId ? { ...el, locked: !el.locked } : el
+                        selectedIds.includes(el.id) ? { ...el, locked: !el.locked } : el
                       ));
                     }}
                     className="flex-1 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm flex items-center justify-center gap-2 transition-colors"
                   >
-                    {selectedElement.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                    {selectedElement.locked ? 'Unlock' : 'Lock'}
+                    {selectedElement?.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                    {selectedElement?.locked ? 'Unlock' : 'Lock'}
                   </button>
                   <button
                     onClick={() => {
-                      setElements(els => els.filter(el => el.id !== selectedId));
-                      setSelectedId(null);
+                      setElements(els => els.filter(el => !selectedIds.includes(el.id)));
+                      setSelectedIds([]);
                       addTimelineEvent('Deleted element');
                     }}
                     className="px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm flex items-center justify-center gap-2 transition-colors"
@@ -308,32 +379,90 @@ export default function StudioClient({ roomId }: StudioClientProps) {
                   </button>
                 </div>
               </div>
+            ) : selectedIds.length > 1 ? (
+              <div className="space-y-4">
+                <p className="text-sm text-[var(--color-text-secondary)] font-medium bg-[#FF4564]/10 text-[#FF4564] px-3 py-2 rounded-lg">
+                  {selectedIds.length} items selected
+                </p>
+                <div className="mb-4">
+                  <label className="text-xs text-[var(--color-text-secondary)] mb-2 block">Batch Color</label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {['#FF4564', '#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#ffffff', '#000000'].map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setElements(els => els.map(el => selectedIds.includes(el.id) ? { ...el, color } : el))}
+                        className={`w-6 h-6 rounded-full border-2 border-transparent shadow-sm hover:scale-110 transition-transform`}
+                        style={{ background: color }}
+                        title={`Set color to ${color}`}
+                      />
+                    ))}
+                  </div>
+                  <input
+                    type="color"
+                    onChange={(e) => setElements(els => els.map(el =>
+                      selectedIds.includes(el.id) ? { ...el, color: e.target.value } : el
+                    ))}
+                    className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-0 p-0"
+                  />
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <button
+                    onClick={() => {
+                      setElements(els => els.filter(el => !selectedIds.includes(el.id)));
+                      setSelectedIds([]);
+                      addTimelineEvent('Batch deleted elements');
+                    }}
+                    className="w-full px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete All
+                  </button>
+                </div>
+              </div>
+            ) : activeTool === 'freehand' || activeTool === 'rect' || activeTool === 'circle' || activeTool === 'star' || activeTool === 'triangle' ? (
+              <div className="space-y-4">
+                <div className="mb-4">
+                  <label className="text-xs text-[var(--color-text-secondary)] mb-2 block">Tool Color</label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {['#FF4564', '#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#ffffff', '#000000'].map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setBrushColor(color)}
+                        className={`w-6 h-6 rounded-full border-2 ${brushColor === color ? 'border-white' : 'border-transparent'} shadow-sm`}
+                        style={{ background: color }}
+                        title={`Set color to ${color}`}
+                      />
+                    ))}
+                  </div>
+                  <input
+                    type="color"
+                    value={brushColor}
+                    onChange={(e) => setBrushColor(e.target.value)}
+                    className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-0 p-0"
+                  />
+                </div>
+                {activeTool === 'freehand' && (
+                  <div>
+                    <label className="text-xs text-[var(--color-text-secondary)] mb-1 block">
+                      Brush Size: {brushSize}px
+                    </label>
+                    <input
+                      type="range"
+                      min="1" max="20" step="1"
+                      value={brushSize}
+                      onChange={(e) => setBrushSize(Number(e.target.value))}
+                      className="w-full accent-[#FF4564]"
+                    />
+                  </div>
+                )}
+              </div>
             ) : (
               <p className="text-sm text-[var(--color-text-secondary)]">
                 Select an element to edit its properties
               </p>
             )}
 
-            {/* Brush settings for freehand */}
-            {activeTool === 'freehand' && (
-              <div className="mt-6 pt-4 border-t border-[var(--color-border)]">
-                <h3 className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">
-                  Brush
-                </h3>
-                <div>
-                  <label className="text-xs text-[var(--color-text-secondary)] mb-1 block">
-                    Size: {brushSize}px
-                  </label>
-                  <input
-                    type="range"
-                    min="1" max="20" step="1"
-                    value={brushSize}
-                    onChange={(e) => setBrushSize(Number(e.target.value))}
-                    className="w-full accent-indigo-500"
-                  />
-                </div>
-              </div>
-            )}
+
 
             {/* Timeline */}
             <div className="mt-6 pt-4 border-t border-[var(--color-border)]">
@@ -343,10 +472,10 @@ export default function StudioClient({ roomId }: StudioClientProps) {
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {timeline.slice(0, 20).map(event => (
                   <div key={event.id} className="flex items-start gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 shrink-0" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#FF4564] mt-1.5 shrink-0" />
                     <div>
                       <p className="text-xs text-[var(--color-text)]">{event.description}</p>
-                      <p className="text-[10px] text-[var(--color-text-secondary)]">
+                      <p className="text-[10px] text-[var(--color-text-secondary)]" suppressHydrationWarning>
                         {new Date(event.timestamp).toLocaleTimeString()}
                       </p>
                     </div>
