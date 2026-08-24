@@ -83,7 +83,7 @@ export default function StudioClient({ roomId }: StudioClientProps) {
     };
     
     setElements(prev => [...prev, newElement]);
-    setSelectedId(newElement.id);
+    setSelectedIds([newElement.id]);
     setActiveTool('select');
     addTimelineEvent('Added image');
     

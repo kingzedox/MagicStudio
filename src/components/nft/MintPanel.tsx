@@ -8,7 +8,9 @@ import { uploadImageToPinata, uploadMetadataToPinata } from '@/lib/storage/pinat
 import { generateNFTMetadata } from '@/lib/ai/metadata';
 import { createUmiClient } from '@/lib/metaplex/umi';
 import { mintSingleNFT } from '@/lib/metaplex/mint';
-
+import type { CanvasElement } from '@/types';
+import type { CanvasAreaHandle } from '@/components/canvas/CanvasArea';
+import type { MintResult, NFTAttribute, NFTMetadata } from '@/types/nft';
 interface MintPanelProps {
   elements: CanvasElement[];
   canvasRef: React.RefObject<CanvasAreaHandle | null>;

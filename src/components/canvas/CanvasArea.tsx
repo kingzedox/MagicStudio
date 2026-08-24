@@ -386,8 +386,9 @@ const CanvasArea = forwardRef<CanvasAreaHandle, CanvasAreaProps>(function Canvas
     });
 
     // Find the closest snap for X and Y
-    let bestSnapX: { diff: number, snapTarget: number, nodeSnapPoint: number } | null = null;
-    let bestSnapY: { diff: number, snapTarget: number, nodeSnapPoint: number } | null = null;
+    type SnapInfo = { diff: number; snapTarget: number; nodeSnapPoint: number; };
+    let bestSnapX = null as SnapInfo | null;
+    let bestSnapY = null as SnapInfo | null;
 
     const nodeXs = [box.x, boxCenterX, box.x + box.width];
     const nodeYs = [box.y, boxCenterY, box.y + box.height];
@@ -451,7 +452,7 @@ const CanvasArea = forwardRef<CanvasAreaHandle, CanvasAreaProps>(function Canvas
     e.cancelBubble = true;
     if (activeTool === 'select') {
       if (e.evt.shiftKey || e.evt.metaKey) {
-        setSelectedIds(prev => prev.includes(el.id) ? prev.filter(id => id !== el.id) : [...prev, el.id]);
+        setSelectedIds(selectedIds.includes(el.id) ? selectedIds.filter(id => id !== el.id) : [...selectedIds, el.id]);
       } else {
         setSelectedIds([el.id]);
       }
