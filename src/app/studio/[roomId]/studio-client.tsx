@@ -15,6 +15,22 @@ import { useToast } from '@/hooks/useToast';
 import CanvasArea, { type CanvasAreaHandle } from '@/components/canvas/CanvasArea';
 import MintPanel from '@/components/nft/MintPanel';
 
+const BlockyIdenticon = ({ seed }: { seed: string }) => {
+  const hash = seed.split('').reduce((acc, char) => ((acc << 5) - acc) + char.charCodeAt(0), 0);
+  const colors = ['#FF4564', '#FF7A8F', '#2A2A2A', '#4A4A4A', '#FFFFFF'];
+  
+  return (
+    <div className="w-6 h-6 rounded overflow-hidden grid grid-cols-3 grid-rows-3 border border-white/10 shrink-0">
+      {Array.from({ length: 9 }).map((_, i) => {
+        const colorIndex = Math.abs(Math.floor(Math.sin(hash + i + 1) * 10000)) % colors.length;
+        return (
+          <div key={i} style={{ backgroundColor: colors[colorIndex] }} />
+        );
+      })}
+    </div>
+  );
+};
+
 const TOOLS: { type: ElementType | 'select' | 'eraser'; icon: React.ReactNode; label: string }[] = [
   { type: 'select', icon: <span className="text-sm cursor-pointer">↖</span>, label: 'Select' },
   { type: 'freehand', icon: <Pen className="w-4 h-4" />, label: 'Draw' },
@@ -152,9 +168,7 @@ export default function StudioClient({ roomId }: StudioClientProps) {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-[#FF4564] flex items-center justify-center">
-              <Sparkles className="w-3 h-3 text-white" />
-            </div>
+            <BlockyIdenticon seed={roomId} />
             <span className="text-sm font-semibold">{roomId}</span>
           </div>
         </div>
