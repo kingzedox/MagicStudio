@@ -1,4 +1,5 @@
 import StudioClient from './studio-client';
+import { Room } from './Room';
 
 interface StudioPageProps {
   params: Promise<{ roomId: string }>;
@@ -14,5 +15,9 @@ export async function generateMetadata({ params }: StudioPageProps) {
 
 export default async function StudioPage({ params }: StudioPageProps) {
   const { roomId } = await params;
-  return <StudioClient roomId={roomId} />;
+  return (
+    <Room roomId={roomId}>
+      <StudioClient roomId={roomId} />
+    </Room>
+  );
 }

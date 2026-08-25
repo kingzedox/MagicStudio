@@ -15,6 +15,9 @@ import { useToast } from '@/hooks/useToast';
 import CanvasArea, { type CanvasAreaHandle } from '@/components/canvas/CanvasArea';
 import MintPanel from '@/components/nft/MintPanel';
 
+import { useStorage, useMutation, useMyPresence, useOthers } from "@liveblocks/react/suspense";
+import { LiveList } from "@liveblocks/client";
+
 const BlockyIdenticon = ({ seed }: { seed: string }) => {
   const hash = seed.split('').reduce((acc, char) => ((acc << 5) - acc) + char.charCodeAt(0), 0);
   const colors = ['#FF4564', '#FF7A8F', '#2A2A2A', '#4A4A4A', '#FFFFFF'];
@@ -51,12 +54,42 @@ export default function StudioClient({ roomId }: StudioClientProps) {
   const router = useRouter();
   const { toasts, hideToast, success, error, loading } = useToast();
 
-  const [elements, setElements] = useState<CanvasElement[]>([]);
+  const [myPresence, updateMyPresence] = useMyPresence();
+  const others = useOthers();
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    updateMyPresence({ cursor: { x: Math.round(e.clientX), y: Math.round(e.clientY) } });
+  }, [updateMyPresence]);
+  
+  const handlePointerLeave = useCallback(() => {
+    updateMyPresence({ cursor: null });
+  }, [updateMyPresence]);
+
+  const liveElements = useStorage((root) => root.elements);
+  const elements = (liveElements ? Array.from(liveElements) : []) as unknown as CanvasElement[];
+  
+  const setElements = useMutation(({ storage }, updater: CanvasElement[] | ((prev: CanvasElement[]) => CanvasElement[])) => {
+    const list = storage.get("elements") as LiveList<any>;
+    if (!list) return;
+    const current = Array.from(list);
+    const next = typeof updater === 'function' ? updater(current) : updater;
+    
+    list.clear();
+    for (const el of next) {
+      list.push(el as any);
+    }
+  }, []);
+
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeTool, setActiveTool] = useState<ElementType | 'select' | 'eraser'>('select');
   const [brushColor, setBrushColor] = useState('#FF4564');
   const [brushSize, setBrushSize] = useState(3);
-  const [canvasBg, setCanvasBg] = useState('#1a1a2e');
+  
+  const liveCanvasBg = useStorage((root) => root.canvasBg);
+  const canvasBg = liveCanvasBg || '#1a1a2e';
+  const setCanvasBg = useMutation(({ storage }, bg: string) => {
+    storage.set("canvasBg", bg);
+  }, []);
   const [showMintPanel, setShowMintPanel] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [isMounted, setIsMounted] = useState(false);
@@ -152,7 +185,31 @@ export default function StudioClient({ roomId }: StudioClientProps) {
   const selectedElement = selectedIds.length === 1 ? elements.find(el => el.id === selectedIds[0]) : null;
 
   return (
-    <div className="flex flex-col h-screen bg-[var(--color-bg)] overflow-hidden">
+    <div 
+      className="flex flex-col h-screen bg-[var(--color-bg)] overflow-hidden relative"
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+    >
+      {/* Live Cursors */}
+      {others.map(({ connectionId, presence }) => {
+        if (!presence?.cursor) return null;
+        return (
+          <div
+            key={connectionId}
+            className="absolute z-[9999] pointer-events-none"
+            style={{
+              left: presence.cursor.x,
+              top: presence.cursor.y,
+              transition: "transform 0.1s ease-out",
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-lg -translate-x-1 -translate-y-1">
+              <path d="M5.65376 1.15003L22.6538 10.15C23.5186 10.6067 23.4975 11.8385 22.6162 12.261L14.7335 16.037L9.93282 23.3638C9.43194 24.1281 8.24357 23.9576 7.97127 23.0847L5.65376 1.15003Z" fill="#d6ff50" stroke="white" strokeWidth="2.5" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        );
+      })}
+
       {/* Toast stack */}
       {toasts.map(t => (
         <Toast key={t.id} message={t.message} type={t.type} onClose={() => hideToast(t.id)} />
