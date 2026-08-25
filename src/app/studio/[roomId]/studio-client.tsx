@@ -74,9 +74,31 @@ export default function StudioClient({ roomId }: StudioClientProps) {
     const current = Array.from(list);
     const next = typeof updater === 'function' ? updater(current) : updater;
     
-    list.clear();
-    for (const el of next) {
-      list.push(el as any);
+    const nextIds = next.map(el => el.id);
+    
+    // 1. Remove deleted items
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (!nextIds.includes(list.get(i).id)) {
+        list.delete(i);
+      }
+    }
+    
+    // 2. Add or Update items
+    for (let i = 0; i < next.length; i++) {
+      const el = next[i];
+      const currentList = list.toArray();
+      const existingIndex = currentList.findIndex((e: any) => e.id === el.id);
+      
+      if (existingIndex === -1) {
+        list.insert(el as any, i);
+      } else {
+        if (JSON.stringify(list.get(existingIndex)) !== JSON.stringify(el)) {
+          list.set(existingIndex, el as any);
+        }
+        if (existingIndex !== i) {
+          list.move(existingIndex, i);
+        }
+      }
     }
   }, []);
 

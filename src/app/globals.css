@@ -125,3 +125,11 @@
   opacity: 0.9 !important;
   transform: translateY(-1px) !important;
 }
+
+/* Hide Liveblocks watermark */
+div:has(> a[href*="liveblocks.io"]),
+a[href*="liveblocks.io"][target="_blank"] {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
