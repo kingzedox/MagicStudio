@@ -10,11 +10,8 @@ import { LiveList } from "@liveblocks/client";
 import { Loader2 } from "lucide-react";
 
 export function Room({ children, roomId }: { children: ReactNode; roomId: string }) {
-  // Try to use env var, fallback to empty to avoid build errors, but it won't connect without a valid key
-  const apiKey = process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY || "pk_placeholder";
-
   return (
-    <LiveblocksProvider publicApiKey={apiKey}>
+    <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
       <RoomProvider 
         id={roomId}
         initialPresence={{
